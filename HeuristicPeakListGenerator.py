@@ -745,8 +745,8 @@ class EazyMZDataProcess(object):
         rawData['IntList'] = rawData['IntList'].apply(lambda x:str_num(x[1:len(x)-1]))
         return rawData
     def RI_to_RT(RI,RIIS):
-        n_place = np.where(RIIS['C']<=RI/100)[0]
-        n1_place = np.where(RIIS['C']>RI/100)[0]
+        n_place = list(filter(lambda x:RIIS.at[x,'C']<=RI,range(len(RIIS))))
+        n1_place = list(filter(lambda x:RIIS.at[x,'C']>RI,range(len(RIIS))))
         if len(n_place)==0:
             n_place = n1_place[0]
             n1_place = n1_place[1]
@@ -762,8 +762,8 @@ class EazyMZDataProcess(object):
         RT = (RI/100-C_number)*(t_n1-t_n)+t_n
         return RT
     def RT_to_RI(RT,RIIS):
-        n_place = np.where(RIIS['RT']<=RT)[0]
-        n1_place = np.where(RIIS['RT']>RT)[0]
+        n_place = list(filter(lambda x:RIIS.at[x,'RT']<=RT,range(len(RIIS))))
+        n1_place = list(filter(lambda x:RIIS.at[x,'RT']>RT,range(len(RIIS))))
         if len(n_place)==0:
             n_place = n1_place[0]
             n1_place = n1_place[1]
@@ -781,8 +781,8 @@ class EazyMZDataProcess(object):
     def Heuristic_PeakDetect(self):
         warnings.filterwarnings('ignore')
         def RI_to_RT(RI,RIIS):
-            n_place = np.where(RIIS['C']<=RI/100)[0]
-            n1_place = np.where(RIIS['C']>RI/100)[0]
+            n_place = list(filter(lambda x:RIIS.at[x,'C']<=RI,range(len(RIIS))))
+            n1_place = list(filter(lambda x:RIIS.at[x,'C']>RI,range(len(RIIS))))
             if len(n_place)==0:
                 n_place = n1_place[0]
                 n1_place = n1_place[1]
@@ -809,8 +809,8 @@ class EazyMZDataProcess(object):
             y=a*math.exp((-1*(x-b)**2)/(2*c**2))
             return y
         def RT_to_RI(RT,RIIS):
-            n_place = np.where(RIIS['RT']<=RT)[0]
-            n1_place = np.where(RIIS['RT']>RT)[0]
+            n_place = list(filter(lambda x:RIIS.at[x,'RT']<=RT,range(len(RIIS))))
+            n1_place = list(filter(lambda x:RIIS.at[x,'RT']>RT,range(len(RIIS))))
             if len(n_place)==0:
                 n_place = n1_place[0]
                 n1_place = n1_place[1]
