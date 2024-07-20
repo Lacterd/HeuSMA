@@ -1122,14 +1122,6 @@ class EazyMZDataProcess(object):
         self.RIIS = pd.read_excel(RIIS)
         if 'RT' not in list(self.RIIS.keys()):
             self.RIIS['RT']=0.00
-            RTL = 60
-            RTR = self.Origin_RT_List[-1]
-            for ii in range(len(self.RIIS)):                
-                MZ = self.RIIS['m/z'][ii]
-                [RT_List, Int_List]=self.ExtractDataPoint(MZ,RTR,RTL)
-                RT_place = np.where(Int_List==max(Int_List))[0]
-                self.RIIS['RT'][ii] = RT_List[RT_place[0]].copy()
-            self.RIIS['RT']=0.00
             self.RIIS['Candidate_RT'] = ''
             self.RIIS['Candidate_Int'] = ''
             RTL = 0
@@ -1137,37 +1129,54 @@ class EazyMZDataProcess(object):
             for i in range(len(self.RIIS)):                
                 MZ = self.RIIS['m/z'][i]
                 [RT_List, Int_List]=self.ExtractDataPoint(MZ,RTR,RTL)
-                RT_place_1 = np.where(Int_List==max(Int_List))[0][0]
+                RT_place_1 = Int_List.index(max(Int_List))
                 Int_List_d = Int_List[0:RT_place_1-int(self.__param['Points']/2)]+Int_List[RT_place_1+int(self.__param['Points']/2):-1]
-                RT_place_2 = np.where(Int_List_d==max(Int_List_d))[0][0]
+                RT_place_2 = Int_List_d.index(max(Int_List_d))
                 if RT_place_2 >= RT_place_1-int(self.__param['Points']/2):
                     RT_place_2 += int(self.__param['Points']/2)*2
-                self.RIIS['Candidate_RT'][i] = [RT_List[RT_place_1],RT_List[RT_place_2]]
-                self.RIIS['Candidate_Int'][i] = [Int_List[RT_place_1],Int_List[RT_place_2]]
-                self.RIIS['RT'][i] = RT_List[RT_place_1].copy()
+                if Int_List[RT_place_1]>=self.__param['min_Int'] and self.__param['min_Int']:
+                    self.RIIS['Candidate_RT'][i] = [RT_List[RT_place_1],RT_List[RT_place_2]]
+                    self.RIIS['Candidate_Int'][i] = [Int_List[RT_place_1],Int_List[RT_place_2]]
+                    self.RIIS['RT'][i] = RT_List[RT_place_1].copy()
+                elif Int_List[RT_place_1]>=self.__param['min_Int']:
+                    self.RIIS['Candidate_RT'][i] = [RT_List[RT_place_1]]
+                    self.RIIS['Candidate_Int'][i] = [Int_List[RT_place_1]]
+                    self.RIIS['RT'][i] = RT_List[RT_place_1].copy()
+            del_list = list(filter(lambda x:self.RIIS['RT'][x]==0,range(len(self.RIIS))))
+            self.RIIS.drop(del_list,inplace=True)
+            self.RIIS.reset_index(drop=True,inplace=True)   
+            del_list = []
             for i in range(len(self.RIIS.iloc[:,0])):
                 if i == 0:
-                    if self.RIIS['RT'][i] > self.RIIS['RT'][i+1]:
+                    if self.RIIS['RT'][i] >= self.RIIS['RT'][i+1] and len(self.RIIS['Candidate_RT'][i]) == 2:
                         self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][1]
-                        if self.RIIS['RT'][i]>self.RIIS['RT'][i+1]:
-                            self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][0]
+                        if self.RIIS['RT'][i] >= self.RIIS['RT'][i+1]:
+                            del_list.append(i)
+                    elif self.RIIS['RT'][i] >= self.RIIS['RT'][i+1] and len(self.RIIS['Candidate_RT'][i]) == 1:
+                        del_list.append(i)
                 elif i == len(self.RIIS.iloc[:,0])-1:
-                    if self.RIIS['RT'][i] < self.RIIS['RT'][i-1]:
+                    if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] and len(self.RIIS['Candidate_RT'][i]) == 2:
                         self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][1]
-                        if self.RIIS['RT'][i]<self.RIIS['RT'][i-1]:
-                            self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][0]
+                        if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1]:
+                            del_list.append(i)
+                    elif self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] and len(self.RIIS['Candidate_RT'][i]) == 1:
+                        del_list.append(i)
                 else:
-                    if self.RIIS['RT'][i] < self.RIIS['RT'][i-1] or self.RIIS['RT'][i]>self.RIIS['RT'][i+1]:
-                        self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][1]
-                        if self.RIIS['RT'][i]<self.RIIS['RT'][i-1] or self.RIIS['RT'][i]>self.RIIS['RT'][i+1]:
-                            self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][0]
+                    if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] or self.RIIS['RT'][i] >= self.RIIS['RT'][i+1]:
+                        if len(self.RIIS['Candidate_RT'][i]) == 2:
+                            self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][1]
+                            if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] or self.RIIS['RT'][i] >=self.RIIS['RT'][i+1]:
+                                del_list.append(i)
+            self.RIIS.drop(del_list,inplace=True)
+            self.RIIS.reset_index(drop=True,inplace=True)   
             for i in range(1,len(self.RIIS.iloc[:,1])-1):
-                if min(self.RIIS['Candidate_Int'][i])/max(self.RIIS['Candidate_Int'][i])>0.4 and self.RIIS['RT'][i] != self.RIIS['Candidate_RT'][i][1]:
-                    if self.RIIS.at[i-1,'RT']<self.RIIS['Candidate_RT'][i][1]<self.RIIS.at[i+1,'RT']:
-                        score_1 = (self.RIIS['Candidate_RT'][i][0]-self.RIIS.at[i-1,'RT'])/(self.RIIS.at[i+1,'RT']-self.RIIS['Candidate_RT'][i][0])
-                        score_2 = (self.RIIS['Candidate_RT'][i][1]-self.RIIS.at[i-1,'RT'])/(self.RIIS.at[i+1,'RT']-self.RIIS['Candidate_RT'][i][1])
-                        if abs(1-score_2)<abs(1-score_1):
-                            self.RIIS.at[i,'RT']=self.RIIS.at[i,'Candidate_RT'][1]
+                if len(self.RIIS['Candidate_RT'][i]) == 2:
+                    if min(self.RIIS['Candidate_Int'][i])/max(self.RIIS['Candidate_Int'][i])>0.4 and self.RIIS['RT'][i] != self.RIIS['Candidate_RT'][i][1]:
+                        if self.RIIS.at[i-1,'RT']<self.RIIS['Candidate_RT'][i][1]<self.RIIS.at[i+1,'RT']:
+                            score_1 = (self.RIIS['Candidate_RT'][i][0]-self.RIIS.at[i-1,'RT'])/(self.RIIS.at[i+1,'RT']-self.RIIS['Candidate_RT'][i][0])
+                            score_2 = (self.RIIS['Candidate_RT'][i][1]-self.RIIS.at[i-1,'RT'])/(self.RIIS.at[i+1,'RT']-self.RIIS['Candidate_RT'][i][1])
+                            if abs(1-score_2)<abs(1-score_1):
+                                self.RIIS.at[i,'RT']=self.RIIS.at[i,'Candidate_RT'][1]
     def Calculate_RI(self):
         if 'RT' not in self.RIIS.keys():
             self.RIIS['Candidate_RT'] = ''
