@@ -1239,10 +1239,8 @@ class EazyMZDataProcess(object):
                     RT = RT_List[Peak_Top[v]]
                     RI = RT_to_RI(RT, self.RIIS)
                     Int = max(Int_List_Origin[Peak_Top[v]],Int_List[Peak_Top[v]]*Int_Correction)
-                    #[BaseValue,Noise] = self.Baseline(MZ,RT_List[Peak_End[v]+1],RT_List[Peak_Begin[v]])
                     RTList = RT_List[Peak_Begin[v]:Peak_End[v]+1]
                     Peak_Int_List = Int_List[Peak_Begin[v]:Peak_End[v]+1]
-                    #rate = max(Peak_Int_List[0],Peak_Int_List[-1])/Int
                     if Int > self.__param['min_Int'] and Int/Noise>=3 and len(RTList)>=self.__param['Points'] and len(list(filter(lambda x:(1-self.__param['RT_Tor'])<RI/x<(1+self.__param['RT_Tor']),RI_List)))>=1: 
                         #IntList = Int_List[Peak_Begin[v]:Peak_End[v]+1]
                         RTPlace = list(filter(lambda x:Peak_Int_List[x]==max(Peak_Int_List),range(len(Peak_Int_List))))
@@ -1442,10 +1440,10 @@ class EazyMZDataProcess(object):
                 MZ = self.RIIS['m/z'][i]
                 [RT_List, Int_List]=self.ExtractDataPoint(MZ,RTR,RTL)
                 RT_place_1 = Int_List.index(max(Int_List))
-                Int_List_d = Int_List[0:RT_place_1-int(self.__param['Points']/2)]+Int_List[RT_place_1+int(self.__param['Points']/2):-1]
+                Int_List_d = Int_List[0:RT_place_1-int(self.__param['Points'])]+Int_List[RT_place_1+int(self.__param['Points']):-1]
                 RT_place_2 = Int_List_d.index(max(Int_List_d))
-                if RT_place_2 >= RT_place_1-int(self.__param['Points']/2):
-                    RT_place_2 += int(self.__param['Points']/2)*2
+                if RT_place_2 >= RT_place_1-int(self.__param['Points']):
+                    RT_place_2 += int(self.__param['Points'])*2
                 if Int_List[RT_place_1]>=self.__param['min_Int'] and self.__param['min_Int']:
                     self.RIIS['Candidate_RT'][i] = [RT_List[RT_place_1],RT_List[RT_place_2]]
                     self.RIIS['Candidate_Int'][i] = [Int_List[RT_place_1],Int_List[RT_place_2]]
@@ -1457,30 +1455,39 @@ class EazyMZDataProcess(object):
             del_list = list(filter(lambda x:self.RIIS['RT'][x]==0,range(len(self.RIIS))))
             self.RIIS.drop(del_list,inplace=True)
             self.RIIS.reset_index(drop=True,inplace=True)   
-            del_list = []
+            del_fix = 0
             for i in range(len(self.RIIS.iloc[:,0])):
+                i = i - del_fix
                 if i == 0:
                     if self.RIIS['RT'][i] >= self.RIIS['RT'][i+1] and len(self.RIIS['Candidate_RT'][i]) == 2:
                         self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][1]
                         if self.RIIS['RT'][i] >= self.RIIS['RT'][i+1]:
-                            del_list.append(i)
+                            self.RIIS.drop(i,inplace=True)
+                            self.RIIS.reset_index(drop=True,inplace=True)  
+                            del_fix = del_fix + 1
                     elif self.RIIS['RT'][i] >= self.RIIS['RT'][i+1] and len(self.RIIS['Candidate_RT'][i]) == 1:
-                        del_list.append(i)
+                        self.RIIS.drop(i,inplace=True)
+                        self.RIIS.reset_index(drop=True,inplace=True)  
+                        del_fix = del_fix + 1
                 elif i == len(self.RIIS.iloc[:,0])-1:
                     if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] and len(self.RIIS['Candidate_RT'][i]) == 2:
                         self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][1]
                         if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1]:
-                            del_list.append(i)
+                            self.RIIS.drop(i,inplace=True)
+                            self.RIIS.reset_index(drop=True,inplace=True)  
+                            del_fix = del_fix + 1
                     elif self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] and len(self.RIIS['Candidate_RT'][i]) == 1:
-                        del_list.append(i)
+                        self.RIIS.drop(i,inplace=True)
+                        self.RIIS.reset_index(drop=True,inplace=True)  
+                        del_fix = del_fix + 1
                 else:
                     if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] or self.RIIS['RT'][i] >= self.RIIS['RT'][i+1]:
                         if len(self.RIIS['Candidate_RT'][i]) == 2:
                             self.RIIS['RT'][i] = self.RIIS['Candidate_RT'][i][1]
                             if self.RIIS['RT'][i] <= self.RIIS['RT'][i-1] or self.RIIS['RT'][i] >=self.RIIS['RT'][i+1]:
-                                del_list.append(i)
-            self.RIIS.drop(del_list,inplace=True)
-            self.RIIS.reset_index(drop=True,inplace=True)   
+                                self.RIIS.drop(i,inplace=True)
+                                self.RIIS.reset_index(drop=True,inplace=True)  
+                                del_fix = del_fix + 1 
             for i in range(1,len(self.RIIS.iloc[:,1])-1):
                 if len(self.RIIS['Candidate_RT'][i]) == 2:
                     if min(self.RIIS['Candidate_Int'][i])/max(self.RIIS['Candidate_Int'][i])>0.4 and self.RIIS['RT'][i] != self.RIIS['Candidate_RT'][i][1]:
